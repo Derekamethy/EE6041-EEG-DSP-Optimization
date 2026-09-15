@@ -1,0 +1,126 @@
+{
+  "input": {
+    "samples": 30000,
+    "sampling_rate_hz": 500.0,
+    "duration_seconds": 60.0
+  },
+  "resampling": {
+    "output_sampling_rate_hz": 32.0,
+    "output_samples": 1920,
+    "expected_output_samples": 1920,
+    "reference_overlap_samples": 1904
+  },
+  "anti_alias_filter": {
+    "num_taps": 4145,
+    "kaiser_beta": 5.65326,
+    "passband_edge_hz": 12.5,
+    "stopband_edge_hz": 16.0,
+    "passband_edge_gain_db": -0.00951488777432838,
+    "worst_case_passband_deviation_db": 0.008977336418255294,
+    "stopband_edge_gain_db": -60.32174938723314,
+    "minimum_stopband_attenuation_db": 59.890199892495666
+  },
+  "frequency_resolution_hz": {
+    "500_hz_8s_epoch": 0.125,
+    "32_hz_8s_epoch": 0.125
+  },
+  "numerical_equivalence": {
+    "n": 1904,
+    "mse": 7.770055972322529e-27,
+    "rmse": 8.814792097561082e-14,
+    "correlation": 1.0
+  },
+  "spectral_validation_target_band": {
+    "frequency_bins": 97,
+    "frequency_resolution_hz": 0.125,
+    "psd_window": "hann",
+    "psd_shape": {
+      "correlation": {
+        "mean": 0.9999999937205448,
+        "median": 0.9999999959140987,
+        "min": 0.9999999779473056,
+        "max": 0.9999999999302872
+      },
+      "normalized_psd_rmse": {
+        "mean": 3.3755124892237543e-06,
+        "median": 3.3695821307038053e-06,
+        "min": 1.3247070788125444e-06,
+        "max": 5.118457084412299e-06
+      },
+      "relative_rmse_percent": {
+        "mean": 0.009840464983592076,
+        "median": 0.009082305436499419,
+        "min": 0.0018648193659080601,
+        "max": 0.019410783535689632
+      }
+    },
+    "band_power_relative_error_percent": {
+      "low_0p5_4_hz": {
+        "mean": 0.02840283575671376,
+        "median": 0.02765985012308835,
+        "min": 0.021595994686054727,
+        "max": 0.036738658964820065
+      },
+      "mid_4_8_hz": {
+        "mean": 0.028196571052179296,
+        "median": 0.026292949428425572,
+        "min": 0.018852203628772077,
+        "max": 0.04402842413873543
+      },
+      "high_8_12p5_hz": {
+        "mean": 0.03444674667352958,
+        "median": 0.03183403125488923,
+        "min": 0.00976840532479979,
+        "max": 0.07988454836191645
+      }
+    },
+    "spectral_entropy": {
+      "n": 14,
+      "mse": 1.4040482597535651e-10,
+      "rmse": 1.1849254237096802e-05,
+      "correlation": 0.9999999976946933,
+      "reference_mean": 0.5655573464988922,
+      "candidate_mean": 0.5655565281160504,
+      "mean_absolute_error": 9.437231702788937e-06
+    },
+    "sef95": {
+      "n": 14,
+      "mse": 0.0,
+      "rmse": 0.0,
+      "correlation": 1.0,
+      "reference_mean_hz": 5.080357142857143,
+      "candidate_mean_hz": 5.080357142857143,
+      "mean_absolute_error_hz": 0.0
+    },
+    "iwmf": {
+      "n": 14,
+      "mse": 0.0016951514505767922,
+      "rmse": 0.041172216974275165,
+      "correlation": 0.991112395700521
+    }
+  },
+  "theoretical_complexity": {
+    "direct_form_macs": 994800000,
+    "polyphase_core_macs_approx": 994800.0,
+    "theoretical_reduction_factor": 1000.0,
+    "direct_form_intermediate_arrays_bytes": 3840000
+  },
+  "runtime_benchmark": {
+    "direct_form_reference": {
+      "median_seconds": 0.282286949979607,
+      "mean_seconds": 0.27800806499435565,
+      "std_seconds": 0.0494086330656728,
+      "repeats": 20
+    },
+    "polyphase_optimized": {
+      "median_seconds": 0.0023763999924995005,
+      "mean_seconds": 0.0024575019971234723,
+      "std_seconds": 0.0003700146719257763,
+      "repeats": 100
+    },
+    "median_speedup": 118.78764133587514
+  },
+  "source": {
+    "description": "60 s EEG validation recording"
+  }
+}

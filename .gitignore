@@ -1,0 +1,28 @@
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# IDE / notebook state
+.vscode/
+.idea/
+.ipynb_checkpoints/
+
+# Raw EEG / external data are intentionally not redistributed
+*.xlsx
+*.xls
+*.csv
+*.edf
+
+# Generated analysis artefacts are local by default
+results/*_metrics.json
+!results/benchmark_results.json
+figures/*_resampling_equivalence.png
+figures/*_iwmf_preservation.png
+figures/*_iwmf_resampling_only.png
+figures/*_psd_preservation.png
+!figures/resampling_equivalence.png
+!figures/iwmf_preservation.png
+!figures/psd_preservation.png
