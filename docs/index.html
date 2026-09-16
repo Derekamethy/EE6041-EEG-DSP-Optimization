@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -80,13 +80,17 @@
       <div class="container">
         <p class="section-kicker">03 · Specification-driven filtering</p>
         <h2 class="section-title">The FIR length comes from the specification—not an arbitrary tap count.</h2>
-        <div class="spec-layout">
-          <div class="spec-cards">
-            <article><span>Passband edge</span><strong>12.5 Hz</strong><small>protected analysis limit</small></article>
-            <article><span>Stopband edge</span><strong>16 Hz</strong><small>new Nyquist limit</small></article>
-            <article><span>Target attenuation</span><strong>60 dB</strong><small>Kaiser design objective</small></article>
-            <article><span>Resulting filter</span><strong>4,145 taps</strong><small>β = 5.653</small></article>
-          </div>
+        <div class="spec-cards">
+          <article><span>Passband edge</span><strong>12.5 Hz</strong><small>protected analysis limit</small></article>
+          <article><span>Stopband edge</span><strong>16 Hz</strong><small>new Nyquist limit</small></article>
+          <article><span>Target attenuation</span><strong>60 dB</strong><small>Kaiser design objective</small></article>
+          <article><span>Resulting filter</span><strong>4,145 taps</strong><small>β = 5.653</small></article>
+        </div>
+        <div class="filter-proof-grid">
+          <figure class="evidence-figure">
+            <img src="assets/fir_frequency_response.svg" alt="Anti-alias Kaiser FIR frequency response with the 12.5 Hz passband edge, 16 Hz stopband edge, and minus 60 dB target" loading="lazy">
+            <figcaption>The visual check makes the design intent immediate: the protected band stays essentially flat, then the response falls through the 12.5–16 Hz transition before decimation.</figcaption>
+          </figure>
           <div class="spec-table-wrap">
             <table class="metric-table">
               <thead><tr><th>Response check</th><th>Measured</th></tr></thead>
@@ -126,9 +130,15 @@
           <article class="validation-card"><span>Band-power error</span><strong>0.026–0.032%</strong><p>Median error across 0.5–4, 4–8, and 8–12.5 Hz.</p></article>
           <article class="validation-card"><span>IWMF</span><strong>0.0412 Hz</strong><p>RMSE, with correlation 0.9911.</p></article>
         </div>
-        <div class="figure-grid">
-          <figure class="evidence-figure"><img src="assets/psd_preservation.png" alt="Normalized EEG PSD before and after resampling"><figcaption>The 0.5–12.5 Hz normalized PSD is nearly indistinguishable after resampling.</figcaption></figure>
-          <figure class="evidence-figure"><img src="assets/iwmf_preservation.png" alt="IWMF feature values before and after resampling across epochs"><figcaption>IWMF tracks the reference across epochs while exposing the small residual error quantitatively.</figcaption></figure>
+        <div class="validation-evidence-grid">
+          <figure class="evidence-figure primary-evidence">
+            <img src="assets/psd_band_preservation.svg" alt="Mean normalized PSD before and after resampling, with the protected 0.5 to 12.5 Hz analysis band and the transition to 16 Hz marked" loading="lazy">
+            <figcaption>The 500 Hz reference and 32 Hz output overlap across the protected analysis band. Separation becomes visible only in the transition toward the 16 Hz output Nyquist limit, where attenuation is expected.</figcaption>
+          </figure>
+          <figure class="evidence-figure secondary-evidence">
+            <img src="assets/iwmf_preservation.png" alt="IWMF feature values before and after resampling across epochs" loading="lazy">
+            <figcaption>IWMF tracks the reference across epochs while exposing the small residual error quantitatively.</figcaption>
+          </figure>
         </div>
       </div>
     </section>
