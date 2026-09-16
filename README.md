@@ -2,7 +2,7 @@
 
 Efficient **500 Hz → 32 Hz** EEG resampling with specification-driven anti-alias filtering, polyphase optimisation, and quantitative spectral-preservation validation.
 
-[![CI](https://github.com/Derekamethy/EE6041-EEG-DSP-Optimization/actions/workflows/ci.yml/badge.svg)](https://github.com/Derekamethy/EE6041-EEG-DSP-Optimization/actions/workflows/ci.yml)
+[![CI](https://github.com/Derekamethy/eeg-multirate-dsp/actions/workflows/ci.yml/badge.svg)](https://github.com/Derekamethy/eeg-multirate-dsp/actions/workflows/ci.yml)
 
 **UCC EE6041 Advanced Digital Signal Processing · Yangdeyi Yang**
 
