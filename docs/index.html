@@ -1,0 +1,156 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="EEG multirate DSP engineering case study: 500 Hz to 32 Hz resampling, Kaiser anti-alias FIR design, polyphase optimisation, and spectral-preservation validation.">
+  <title>EEG Multirate DSP | Derek Yang</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="site-nav">
+    <div class="nav-container">
+      <a class="nav-logo" href="#top" aria-label="DSP case study home"><span class="nav-mark">DY</span><span>Derek Yang</span></a>
+      <ul class="nav-links">
+        <li><a href="#problem">Problem</a></li>
+        <li><a href="#pipeline">Pipeline</a></li>
+        <li><a href="#filter">Filter</a></li>
+        <li><a href="#validation">Validation</a></li>
+      </ul>
+      <div class="nav-external"><a href="https://derekamethy.github.io/">Portfolio</a><a href="https://github.com/Derekamethy/eeg-multirate-dsp" target="_blank" rel="noopener noreferrer">Code ↗</a></div>
+    </div>
+  </nav>
+
+  <main>
+    <section id="top" class="hero-section dsp-hero">
+      <div class="container hero-grid">
+        <div>
+          <p class="hero-eyebrow">Digital signal processing · Multirate systems · EEG</p>
+          <h1 class="hero-title">Preserve the signal.<br>Remove the wasted computation.</h1>
+          <p class="hero-subtitle">A 500 Hz → 32 Hz EEG resampling pipeline designed from explicit anti-alias constraints, then validated for numerical equivalence, spectral preservation, and computational efficiency.</p>
+          <div class="hero-actions">
+            <a href="#pipeline" class="btn btn-primary">Explore the DSP pipeline</a>
+            <a href="https://github.com/Derekamethy/eeg-multirate-dsp" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">View source code ↗</a>
+          </div>
+        </div>
+        <div class="hero-metrics" aria-label="Key project metrics">
+          <article><span>Sampling rate</span><strong>500 → 32 Hz</strong><small>exact rational conversion</small></article>
+          <article><span>FIR workload</span><strong>~1000× less</strong><small>theoretical core-operation comparison</small></article>
+          <article><span>Runtime</span><strong>~119× faster</strong><small>median benchmark on validation machine</small></article>
+          <article><span>PSD shape</span><strong>0.999999996</strong><small>median correlation in 0.5–12.5 Hz</small></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="problem" class="case-section">
+      <div class="container">
+        <p class="section-kicker">01 · Engineering question</p>
+        <h2 class="section-title">Downsampling is only safe when the new Nyquist limit is treated as a design constraint.</h2>
+        <div class="two-column-copy">
+          <p>Reducing EEG from 500 Hz to 32 Hz can cut storage and downstream computation substantially. But a naïve decimator can fold energy above 16 Hz back into the retained spectrum.</p>
+          <p>This project therefore treats resampling as a complete system: derive the anti-alias filter from the protected analysis band, implement an efficient polyphase form, and verify what information is preserved after conversion.</p>
+        </div>
+        <div class="principle-grid">
+          <article><span>Protect</span><h3>0.5–12.5 Hz</h3><p>The full target analysis band is kept essentially flat.</p></article>
+          <article><span>Reject</span><h3>≥ 16 Hz</h3><p>The stopband starts at the output Nyquist limit.</p></article>
+          <article><span>Verify</span><h3>Signal + spectrum</h3><p>Numerical equivalence and multiple spectral descriptors are checked separately.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="pipeline" class="case-section bg-light">
+      <div class="container">
+        <p class="section-kicker">02 · Multirate architecture</p>
+        <h2 class="section-title">An exact 8/125 rational conversion.</h2>
+        <div class="pipeline-flow" aria-label="DSP pipeline">
+          <article><span>Input</span><strong>500 Hz</strong><p>EEG recording</p></article><i>→</i>
+          <article><span>Interpolation</span><strong>L = 8</strong><p>4 kHz intermediate rate</p></article><i>→</i>
+          <article><span>Anti-alias FIR</span><strong>4,145 taps</strong><p>Kaiser window</p></article><i>→</i>
+          <article><span>Decimation</span><strong>M = 125</strong><p>retain required phases</p></article><i>→</i>
+          <article class="pipeline-output"><span>Output</span><strong>32 Hz</strong><p>1,920 samples / 60 s</p></article>
+        </div>
+        <div class="resolution-note"><strong>Aligned spectral grid:</strong> 8 s epochs give <code>500 / 4000 = 32 / 256 = 0.125 Hz</code> resolution on both branches.</div>
+      </div>
+    </section>
+
+    <section id="filter" class="case-section">
+      <div class="container">
+        <p class="section-kicker">03 · Specification-driven filtering</p>
+        <h2 class="section-title">The FIR length comes from the specification—not an arbitrary tap count.</h2>
+        <div class="spec-layout">
+          <div class="spec-cards">
+            <article><span>Passband edge</span><strong>12.5 Hz</strong><small>protected analysis limit</small></article>
+            <article><span>Stopband edge</span><strong>16 Hz</strong><small>new Nyquist limit</small></article>
+            <article><span>Target attenuation</span><strong>60 dB</strong><small>Kaiser design objective</small></article>
+            <article><span>Resulting filter</span><strong>4,145 taps</strong><small>β = 5.653</small></article>
+          </div>
+          <div class="spec-table-wrap">
+            <table class="metric-table">
+              <thead><tr><th>Response check</th><th>Measured</th></tr></thead>
+              <tbody>
+                <tr><td>Gain at 12.5 Hz</td><td>−0.0095 dB</td></tr>
+                <tr><td>Worst passband deviation</td><td>0.0090 dB</td></tr>
+                <tr><td>Gain at 16 Hz</td><td>−60.32 dB</td></tr>
+                <tr><td>Minimum stopband attenuation</td><td>59.89 dB</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="polyphase" class="case-section dark-section">
+      <div class="container">
+        <p class="section-kicker light-kicker">04 · Polyphase optimisation</p>
+        <h2 class="section-title light-title">Same FIR response. Far less unnecessary work.</h2>
+        <div class="complexity-grid">
+          <article><span>Direct form</span><strong>994.8M</strong><p>approximate FIR MACs for the 30,000-sample validation recording</p></article>
+          <article><span>Polyphase core</span><strong>0.995M</strong><p>approximate FIR MACs after phase decomposition</p></article>
+          <article><span>Theoretical reduction</span><strong>~1000×</strong><p>operation-count comparison</p></article>
+          <article><span>Measured speed-up</span><strong>~119×</strong><p>median wall-clock benchmark; machine-dependent</p></article>
+        </div>
+        <figure class="evidence-figure dark-figure"><img src="assets/resampling_equivalence.png" alt="Direct-form and polyphase resampling outputs overlaid across the common valid region"><figcaption>Direct-form and polyphase outputs remain numerically equivalent: correlation 1.000000, MSE 7.77×10⁻²⁷.</figcaption></figure>
+      </div>
+    </section>
+
+    <section id="validation" class="case-section">
+      <div class="container">
+        <p class="section-kicker">05 · Spectral preservation</p>
+        <h2 class="section-title">Validation asks more than one frequency-domain question.</h2>
+        <div class="validation-grid">
+          <article class="validation-card"><span>PSD shape</span><strong>0.999999996</strong><p>Median normalized-PSD correlation across 8 s epochs.</p></article>
+          <article class="validation-card"><span>Normalized PSD error</span><strong>0.0091%</strong><p>Median relative RMSE.</p></article>
+          <article class="validation-card"><span>Band-power error</span><strong>0.026–0.032%</strong><p>Median error across 0.5–4, 4–8, and 8–12.5 Hz.</p></article>
+          <article class="validation-card"><span>IWMF</span><strong>0.0412 Hz</strong><p>RMSE, with correlation 0.9911.</p></article>
+        </div>
+        <div class="figure-grid">
+          <figure class="evidence-figure"><img src="assets/psd_preservation.png" alt="Normalized EEG PSD before and after resampling"><figcaption>The 0.5–12.5 Hz normalized PSD is nearly indistinguishable after resampling.</figcaption></figure>
+          <figure class="evidence-figure"><img src="assets/iwmf_preservation.png" alt="IWMF feature values before and after resampling across epochs"><figcaption>IWMF tracks the reference across epochs while exposing the small residual error quantitatively.</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="case-section bg-light">
+      <div class="container">
+        <p class="section-kicker">06 · Engineering ownership</p>
+        <h2 class="section-title">What I designed and verified.</h2>
+        <div class="ownership-list">
+          <article><span>01</span><h3>Multirate design</h3><p>Defined the exact 8/125 conversion and the protected spectral band.</p></article>
+          <article><span>02</span><h3>Filter derivation</h3><p>Derived the Kaiser FIR from passband, stopband, and attenuation requirements.</p></article>
+          <article><span>03</span><h3>Implementation check</h3><p>Built direct-form and polyphase paths and verified numerical equivalence.</p></article>
+          <article><span>04</span><h3>Spectral validation</h3><p>Compared PSD shape, sub-band power, entropy, SEF95, and IWMF.</p></article>
+          <article><span>05</span><h3>Efficiency analysis</h3><p>Separated theoretical operation-count reduction from measured runtime speed-up.</p></article>
+          <article><span>06</span><h3>Reproducibility</h3><p>Added synthetic demo data, regression tests, CI, and a public executable pipeline.</p></article>
+        </div>
+        <div class="scope-note"><strong>Scope:</strong> this is a signal-processing and implementation study. It does not claim clinical performance, diagnostic validity, or preservation of frequencies above the 32 Hz output Nyquist limit.</div>
+        <div class="closing-actions"><a href="https://github.com/Derekamethy/eeg-multirate-dsp" class="btn btn-primary" target="_blank" rel="noopener noreferrer">Inspect the code ↗</a><a href="https://derekamethy.github.io/" class="btn btn-secondary">Back to portfolio</a></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer"><div class="container"><p>© 2026 Derek Yang · EEG multirate DSP engineering case study</p></div></footer>
+</body>
+</html>
