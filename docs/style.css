@@ -728,10 +728,18 @@ h1, h2, h3, h4, h5, h6 {
 .filter-proof-grid .spec-table-wrap,.filter-proof-grid .metric-table { height:100%; }
 .validation-evidence-grid {
   display:grid;
-  grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);
-  gap:1.25rem;
+  grid-template-columns:minmax(0,1fr);
+  gap:2rem;
   align-items:start;
 }
+#problem,#pipeline,#filter,#validation { scroll-margin-top:96px; }
 @media (max-width:900px) {
   .filter-proof-grid,.validation-evidence-grid { grid-template-columns:minmax(0,1fr); }
+}
+
+.evidence-link { display:block; cursor:zoom-in; }
+.evidence-link img { transition:opacity var(--transition-fast); }
+.evidence-link:hover img { opacity:.96; }
+@media (max-width:768px) {
+  .principle-grid { grid-template-columns:minmax(0,1fr); }
 }

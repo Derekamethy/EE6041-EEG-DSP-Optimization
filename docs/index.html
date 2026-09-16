@@ -32,7 +32,7 @@
           <h1 class="hero-title">Preserve the signal.<br>Remove the wasted computation.</h1>
           <p class="hero-subtitle">A 500 Hz → 32 Hz EEG resampling pipeline designed from explicit anti-alias constraints, then validated for numerical equivalence, spectral preservation, and computational efficiency.</p>
           <div class="hero-actions">
-            <a href="#pipeline" class="btn btn-primary">Explore the DSP pipeline</a>
+            <a href="#problem" class="btn btn-primary">Start with the engineering question</a>
             <a href="https://github.com/Derekamethy/eeg-multirate-dsp" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">View source code ↗</a>
           </div>
         </div>
@@ -88,7 +88,7 @@
         </div>
         <div class="filter-proof-grid">
           <figure class="evidence-figure">
-            <img src="assets/fir_frequency_response.svg" alt="Anti-alias Kaiser FIR frequency response with the 12.5 Hz passband edge, 16 Hz stopband edge, and minus 60 dB target" loading="lazy">
+            <a class="evidence-link" href="assets/fir_frequency_response.svg" target="_blank" rel="noopener noreferrer" aria-label="Open the FIR frequency-response figure at full size"><img src="assets/fir_frequency_response.svg" alt="Anti-alias Kaiser FIR frequency response with the 12.5 Hz passband edge, 16 Hz stopband edge, and minus 60 dB target" loading="lazy"></a>
             <figcaption>The visual check makes the design intent immediate: the protected band stays essentially flat, then the response falls through the 12.5–16 Hz transition before decimation.</figcaption>
           </figure>
           <div class="spec-table-wrap">
@@ -132,11 +132,11 @@
         </div>
         <div class="validation-evidence-grid">
           <figure class="evidence-figure primary-evidence">
-            <img src="assets/psd_band_preservation.svg" alt="Mean normalized PSD before and after resampling, with the protected 0.5 to 12.5 Hz analysis band and the transition to 16 Hz marked" loading="lazy">
+            <a class="evidence-link" href="assets/psd_band_preservation.svg" target="_blank" rel="noopener noreferrer" aria-label="Open the PSD preservation figure at full size"><img src="assets/psd_band_preservation.svg" alt="Mean normalized PSD before and after resampling, with the protected 0.5 to 12.5 Hz analysis band and the transition to 16 Hz marked" loading="lazy"></a>
             <figcaption>The 500 Hz reference and 32 Hz output overlap across the protected analysis band. Separation becomes visible only in the transition toward the 16 Hz output Nyquist limit, where attenuation is expected.</figcaption>
           </figure>
           <figure class="evidence-figure secondary-evidence">
-            <img src="assets/iwmf_preservation.png" alt="IWMF feature values before and after resampling across epochs" loading="lazy">
+            <a class="evidence-link" href="assets/iwmf_preservation.png" target="_blank" rel="noopener noreferrer" aria-label="Open the IWMF preservation figure at full size"><img src="assets/iwmf_preservation.png" alt="IWMF feature values before and after resampling across epochs" loading="lazy"></a>
             <figcaption>IWMF tracks the reference across epochs while exposing the small residual error quantitatively.</figcaption>
           </figure>
         </div>
