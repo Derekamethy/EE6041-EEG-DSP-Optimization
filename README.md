@@ -4,6 +4,8 @@ Efficient **500 Hz → 32 Hz** EEG resampling with specification-driven anti-ali
 
 [![CI](https://github.com/Derekamethy/eeg-multirate-dsp/actions/workflows/ci.yml/badge.svg)](https://github.com/Derekamethy/eeg-multirate-dsp/actions/workflows/ci.yml)
 
+**Engineering case study:** https://derekamethy.github.io/eeg-multirate-dsp/
+
 **UCC EE6041 Advanced Digital Signal Processing · Yangdeyi Yang**
 
 The pipeline uses rational multirate processing with `L = 8` and `M = 125`. A Kaiser FIR protects the **0.5–12.5 Hz** analysis band before decimation, while the polyphase implementation avoids most of the computation required by a direct upsample-filter-decimate realization.
