@@ -716,3 +716,22 @@ h1, h2, h3, h4, h5, h6 {
   .container { width:auto; max-width:none; margin-left:20px; margin-right:20px; padding-left:0; padding-right:0; }
   .hero-actions .btn { max-width:100%; }
 }
+
+/* Showcase evidence layout */
+.filter-proof-grid {
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);
+  gap:1.25rem;
+  align-items:start;
+  margin-top:1.25rem;
+}
+.filter-proof-grid .spec-table-wrap,.filter-proof-grid .metric-table { height:100%; }
+.validation-evidence-grid {
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);
+  gap:1.25rem;
+  align-items:start;
+}
+@media (max-width:900px) {
+  .filter-proof-grid,.validation-evidence-grid { grid-template-columns:minmax(0,1fr); }
+}
