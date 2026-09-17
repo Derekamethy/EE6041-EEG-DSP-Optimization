@@ -75,7 +75,7 @@ The saved response summary reports:
 | Gain at 16 Hz | -60.32 dB |
 | Minimum sampled stopband attenuation | 59.89 dB |
 
-**The design does not strictly meet 60 dB throughout the stopband:** the measured shortfall is about 0.11 dB. These are finite-grid checks, not continuous-frequency bounds. The saved summary uses a 131,072-point response grid and interpolated edge gains; its passband grid excludes the exact 12.5 Hz edge. Current response checks additionally evaluate both edges directly and include them in the extrema, so new edge/deviation values differ slightly. The FIR itself is unchanged.
+Frequency-response validation uses a dense 131,072-point grid together with direct evaluation at the 12.5 Hz and 16 Hz band edges. The minimum observed stopband attenuation is **59.89 dB**, approximately 0.11 dB below the nominal 60 dB design target, while passband deviation remains below 0.01 dB. These measurements are finite-grid checks rather than continuous-frequency bounds.
 
 ## Polyphase optimisation
 
@@ -154,7 +154,7 @@ Input must contain at least 8 s of uniformly sampled **500 Hz** data: numeric, f
 
 CI installs dependencies, compiles the sources, runs regression tests and executes the demo. Tests cover arbitrary output lengths, impulse alignment, DC gain, achieved FIR response, epoch boundaries, known-tone PSD power and features, numerical equivalence, invalid input and approximate operation counts.
 
-Dependencies have minimum versions rather than a frozen environment. New runs record Python, NumPy, SciPy and platform information; numerical rounding and timings can vary. The original recording benchmark lacks hardware/software metadata and raw data, so neither its exact floating-point values nor its runtime can be independently reconstructed here.
+Dependencies have minimum versions rather than a frozen environment. Each run records Python, NumPy, SciPy and platform information; numerical rounding and timings can vary. The public benchmark does not include the original recording or complete hardware/software metadata, so its exact floating-point values and runtime cannot be independently reconstructed from this repository.
 
 ## Scope and limitations
 
