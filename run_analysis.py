@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import platform
+import re
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy
 
 from src.demo_data import generate_demo_eeg
 from src.dsp_pipeline import (
     FS_ORIGINAL,
     FS_TARGET,
+    UPSAMPLE,
+    DOWNSAMPLE,
     benchmark_resamplers,
     comparison_metrics,
     design_resample_fir,
@@ -32,6 +37,9 @@ FIGURES_DIR = ROOT / "figures"
 
 
 def build_metrics(data):
+    data = np.asarray(data, dtype=float)
+    if data.ndim != 1 or len(data) < int(8 * FS_ORIGINAL) or not np.isfinite(data).all():
+        raise ValueError("Input must be a finite 1-D recording of at least 8 seconds at 500 Hz.")
     taps = design_resample_fir()
     reference = resample_direct_reference(data, taps)
     polyphase = resample_polyphase(data, taps)
@@ -44,6 +52,10 @@ def build_metrics(data):
 
     raw_epochs, raw_times = segment_epochs(data, FS_ORIGINAL)
     poly_epochs, poly_times = segment_epochs(polyphase, FS_TARGET)
+    # Ceiling-rounded resampling may create an extra complete output epoch.
+    n_epochs = min(len(raw_epochs), len(poly_epochs))
+    raw_epochs, raw_times = raw_epochs[:n_epochs], raw_times[:n_epochs]
+    poly_epochs, poly_times = poly_epochs[:n_epochs], poly_times[:n_epochs]
     raw_iwmf = iwmf_features(raw_epochs, FS_ORIGINAL)
     poly_iwmf = iwmf_features(poly_epochs, FS_TARGET)
 
@@ -73,7 +85,7 @@ def build_metrics(data):
             "output_sampling_rate_hz": FS_TARGET,
             "output_samples": int(len(polyphase)),
             "expected_output_samples": int(
-                round(len(data) * FS_TARGET / FS_ORIGINAL)
+                (len(data) * UPSAMPLE + DOWNSAMPLE - 1) // DOWNSAMPLE
             ),
             "reference_overlap_samples": int(overlap),
         },
@@ -86,6 +98,14 @@ def build_metrics(data):
         "spectral_validation_target_band": spectral_validation,
         "theoretical_complexity": theoretical_complexity(len(data)),
         "runtime_benchmark": benchmark_resamplers(data, taps),
+        "environment": {
+            "python": platform.python_version(),
+            "numpy": np.__version__,
+            "scipy": scipy.__version__,
+            "system": platform.system(),
+            "machine": platform.machine(),
+            "processor": platform.processor(),
+        },
     }
 
     series = {
@@ -194,24 +214,38 @@ def main():
         help="Optional label for generated result and figure filenames.",
     )
     args = parser.parse_args()
+    label = args.label or (args.input.stem if args.input else "demo")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", label):
+        parser.error("--label must start with a letter/digit and contain only letters, digits, _ or -.")
 
     if args.input is None:
         data = generate_demo_eeg(fs=FS_ORIGINAL, seconds=60.0)
-        label = args.label or "demo"
         source = "deterministic synthetic EEG-like demo"
     else:
-        data = load_eeg_xlsx(args.input)
-        label = args.label or args.input.stem
+        try:
+            data = load_eeg_xlsx(args.input)
+        except (ValueError, OSError) as exc:
+            parser.error(str(exc))
         source = args.input.name
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    metrics, series = build_metrics(data)
+    try:
+        metrics, series = build_metrics(data)
+    except ValueError as exc:
+        parser.error(str(exc))
     metrics["source"] = {"label": label, "description": source}
     save_figures(series, label)
 
     output = RESULTS_DIR / f"{label}_metrics.json"
-    output.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
-    print(json.dumps(metrics, indent=2))
+    # JSON null denotes undefined statistics (for example constant-feature correlation).
+    def json_safe(value):
+        if isinstance(value, dict):
+            return {key: json_safe(item) for key, item in value.items()}
+        return None if isinstance(value, float) and not np.isfinite(value) else value
+
+    serialized = json.dumps(json_safe(metrics), indent=2, allow_nan=False)
+    output.write_text(serialized, encoding="utf-8")
+    print(serialized)
     print(f"\nSaved metrics: {output}")
     print(f"Saved figures: {FIGURES_DIR}")
 

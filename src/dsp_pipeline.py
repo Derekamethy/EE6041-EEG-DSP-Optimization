@@ -40,12 +40,16 @@ DEFAULT_BANDS = {
 def load_eeg_xlsx(path):
     """Load the first worksheet/column as a 1-D EEG vector."""
     wb = load_workbook(Path(path), read_only=True, data_only=True)
-    ws = wb[wb.sheetnames[0]]
-    values = [row[0].value for row in ws.iter_rows()]
-    wb.close()
-    data = np.asarray(values, dtype=float)
-    if np.isnan(data).any():
-        raise ValueError("EEG input contains missing/non-numeric samples.")
+    try:
+        ws = wb.worksheets[0]
+        values = [row[0] for row in ws.iter_rows(min_col=1, max_col=1, values_only=True)]
+        data = np.asarray(values, dtype=float)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("EEG first column must contain numeric samples without a header.") from exc
+    finally:
+        wb.close()
+    if data.size == 0 or not np.isfinite(data).all():
+        raise ValueError("EEG first column must contain non-empty, finite numeric samples.")
     return data
 
 
@@ -71,22 +75,27 @@ def filter_response_metrics(taps=None):
     db = 20.0 * np.log10(magnitude)
     passband = freqs <= RESAMPLE_PASSBAND_HZ
     stopband = freqs >= RESAMPLE_STOPBAND_HZ
-    passband_edge_db = float(np.interp(RESAMPLE_PASSBAND_HZ, freqs, db))
-    stopband_edge_db = float(np.interp(RESAMPLE_STOPBAND_HZ, freqs, db))
+    _, edges = signal.freqz(
+        taps, worN=[RESAMPLE_PASSBAND_HZ, RESAMPLE_STOPBAND_HZ],
+        fs=_RESAMPLE_FS_INTERMEDIATE,
+    )
+    passband_edge_db, stopband_edge_db = (
+        float(value) for value in 20.0 * np.log10(np.abs(edges))
+    )
     return {
         "num_taps": int(len(taps)),
         "kaiser_beta": float(RESAMPLE_KAISER_BETA),
         "passband_edge_hz": RESAMPLE_PASSBAND_HZ,
         "stopband_edge_hz": RESAMPLE_STOPBAND_HZ,
         "passband_edge_gain_db": passband_edge_db,
-        "worst_case_passband_deviation_db": float(np.max(np.abs(db[passband]))),
+        "worst_case_passband_deviation_db": max(float(np.max(np.abs(db[passband]))), abs(passband_edge_db)),
         "stopband_edge_gain_db": stopband_edge_db,
-        "minimum_stopband_attenuation_db": float(-np.max(db[stopband])),
+        "minimum_stopband_attenuation_db": float(-max(np.max(db[stopband]), stopband_edge_db)),
     }
 
 
 def resample_direct_reference(data, taps=None):
-    """Direct-form upsample-filter-decimate reference implementation."""
+    """Delay-compensated causal reference; the unflushed tail is omitted."""
     taps = design_resample_fir() if taps is None else taps
     upsampled = np.zeros(len(data) * UPSAMPLE, dtype=float)
     upsampled[::UPSAMPLE] = data
@@ -107,16 +116,13 @@ def resample_polyphase(data, taps=None):
     )
 
 
-def apply_bandpass(data, fs, low=FEATURE_LOW_HZ, high=FEATURE_HIGH_HZ, order=4):
-    """Apply a fourth-order Butterworth band-pass with zero-phase filtering."""
-    nyquist = fs / 2.0
-    b, a = signal.butter(order, [low / nyquist, high / nyquist], btype="band")
-    return signal.filtfilt(b, a, data)
-
-
 def segment_epochs(data, fs, seconds=8.0, overlap=0.5):
+    if fs <= 0 or seconds <= 0 or not 0 <= overlap < 1:
+        raise ValueError("fs and seconds must be positive; overlap must be in [0, 1).")
     n = int(seconds * fs)
     step = int(n * (1.0 - overlap))
+    if n < 1 or step < 1 or len(data) < n:
+        raise ValueError("Input must contain a complete epoch with a positive sample step.")
     starts = range(0, len(data) - n + 1, step)
     epochs = np.asarray([data[start : start + n] for start in starts])
     times = np.asarray([(start + n / 2.0) / fs for start in starts])
@@ -219,10 +225,12 @@ def comparison_metrics(reference, candidate):
         raise ValueError(f"Length mismatch: {len(reference)} vs {len(candidate)}")
     error = candidate - reference
     mse = float(np.mean(error**2))
-    reference_constant = np.allclose(reference, reference[0])
-    candidate_constant = np.allclose(candidate, candidate[0])
+    if reference.size == 0 or not (np.isfinite(reference).all() and np.isfinite(candidate).all()):
+        raise ValueError("Comparisons require non-empty finite arrays.")
+    reference_constant = np.all(reference == reference[0])
+    candidate_constant = np.all(candidate == candidate[0])
     if reference_constant or candidate_constant:
-        correlation = 1.0 if np.allclose(reference, candidate) else 0.0
+        correlation = float("nan")  # Pearson correlation is undefined for constants.
     else:
         correlation = float(np.corrcoef(reference, candidate)[0, 1])
     return {
@@ -279,6 +287,8 @@ def spectral_preservation_metrics(
 
     ref_norm = normalize_psd(ref_aligned)
     cand_norm = normalize_psd(cand_aligned)
+    if np.any(ref_aligned.sum(axis=1) == 0) or np.any(cand_aligned.sum(axis=1) == 0):
+        raise ValueError("Spectral preservation requires nonzero target-band power in every epoch.")
     correlations = np.asarray(
         [
             np.corrcoef(ref_norm[i], cand_norm[i])[0, 1]
@@ -303,7 +313,7 @@ def spectral_preservation_metrics(
             np.abs(cand_band[name] - ref_band[name]),
             np.abs(ref_band[name]),
             out=np.zeros_like(ref_band[name]),
-            where=np.abs(ref_band[name]) > np.finfo(float).eps,
+            where=np.abs(ref_band[name]) > 0,
         )
         band_errors[name] = _summary(errors)
 

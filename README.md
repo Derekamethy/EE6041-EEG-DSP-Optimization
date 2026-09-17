@@ -1,220 +1,167 @@
-# EEG Multirate DSP Pipeline with Polyphase FIR Optimisation
+# EEG Multirate DSP with Polyphase FIR Optimisation
 
-Efficient **500 Hz → 32 Hz** EEG resampling with specification-driven anti-alias filtering, polyphase optimisation, and quantitative spectral-preservation validation.
+**500 Hz → 32 Hz EEG resampling**, with specification-driven anti-alias filtering, an explicit direct reference, and spectral-preservation validation.
+
+[Engineering case study](https://derekamethy.github.io/eeg-multirate-dsp/) · [Primary source](src/dsp_pipeline.py) · [Recorded results](results/benchmark_results.json)
 
 [![CI](https://github.com/Derekamethy/eeg-multirate-dsp/actions/workflows/ci.yml/badge.svg)](https://github.com/Derekamethy/eeg-multirate-dsp/actions/workflows/ci.yml)
 
-**Engineering case study:** https://derekamethy.github.io/eeg-multirate-dsp/
+**Yangdeyi Yang · UCC EE6041 Advanced Digital Signal Processing**
 
-**UCC EE6041 Advanced Digital Signal Processing · Yangdeyi Yang**
+## Key results
 
-The pipeline uses rational multirate processing with `L = 8` and `M = 125`. A Kaiser FIR protects the **0.5–12.5 Hz** analysis band before decimation, while the polyphase implementation avoids most of the computation required by a direct upsample-filter-decimate realization.
+The saved benchmark reports these results for one **60 s, 30,000-sample EEG recording**. The recording is not redistributed, so these recording-dependent values cannot be independently reproduced from the public repository. The deterministic demo exercises the implementation with different data and produces different results.
 
-## At a glance
-
-Validated on a 60 s, 30,000-sample EEG recording:
-
-| Metric | Result |
+| Metric | Recorded result |
 | --- | ---: |
 | Input / output sampling rate | 500 Hz → 32 Hz |
 | Output samples | 1,920 |
-| FFT resolution for 8 s epochs | 0.125 Hz |
-| Direct-form vs polyphase correlation | 1.000000 |
-| Direct-form vs polyphase MSE | 7.77e-27 |
+| Direct/polyphase correlation / MSE | 1.000000 / 7.77e-27 |
 | Median PSD-shape correlation | 0.999999996 |
 | Median normalized-PSD relative RMSE | 0.0091% |
-| Median band-power error across 0.5–12.5 Hz sub-bands | 0.0263–0.0318% |
+| Median band-power error: 0.5–4 / 4–8 / 8–12.5 Hz | 0.0277% / 0.0263% / 0.0318% |
 | Spectral-entropy correlation | 0.999999998 |
+| SEF95 RMSE / correlation | 0.000 Hz / 1.000 |
 | IWMF RMSE / correlation | 0.0412 Hz / 0.9911 |
-| Theoretical FIR-operation reduction | ~1000× |
-| Measured median runtime speed-up | ~119× |
+| Approximate FIR-operation reduction | 1000× |
+| Measured median runtime speed-up | 118.79× (~119×) |
 
-The runtime figure is machine-dependent. The ~1000× figure is a theoretical FIR-operation comparison and is reported separately from measured wall-clock timing.
-
-![Direct-form and polyphase output equivalence](figures/resampling_equivalence.png)
+[benchmark_results.json](results/benchmark_results.json) is the authoritative saved numerical summary. The figures illustrate this recording; their underlying sample and per-epoch arrays are not included.
 
 ## Why this problem matters
 
-Reducing EEG from 500 Hz to 32 Hz can cut storage and downstream computation dramatically, but only if the information needed for later spectral analysis is preserved. A downsampling pipeline therefore has to answer two engineering questions at the same time:
-
-- **Is aliasing controlled by a filter derived from explicit spectral requirements?**
-- **Can the same resampling operation be implemented much more efficiently without changing the retained signal?**
-
-This project treats resampling as a complete DSP design-and-validation problem rather than as a single library call.
+Reducing the sampling rate lowers storage and downstream computation, but energy above the new 16 Hz Nyquist limit can alias into the retained spectrum. The engineering challenge is to protect the 0.5–12.5 Hz analysis band and reduce computation while preserving the same FIR resampling operation.
 
 ## My contribution
 
-- Designed the **500 Hz → 32 Hz** rational conversion with `L = 8`, `M = 125`.
-- Derived a specification-driven Kaiser anti-alias FIR from the 12.5 Hz passband edge, 16 Hz stopband edge, and 60 dB attenuation target.
-- Implemented a direct upsample-filter-decimate reference and an efficient polyphase realization using the same FIR coefficients.
-- Verified numerical equivalence between the two implementations before using the polyphase form for the efficient pipeline.
-- Built an epoch-level spectral validation framework covering PSD shape, sub-band power, spectral entropy, SEF95, and IWMF.
-- Quantified theoretical FIR workload and measured runtime speed-up separately to avoid conflating operation counts with machine-dependent timing.
-- Added deterministic synthetic demo data and automated regression tests so the pipeline can be executed without redistributing the validation recording.
+- Selected the exact rational conversion, protected band and anti-alias specifications.
+- Designed the Kaiser FIR and implemented an explicit upsample-filter-decimate reference.
+- Integrated SciPy's `resample_poly` with the same FIR coefficients and verified its output against the direct reference. The low-level polyphase kernel is provided by SciPy.
+- Implemented epoch-level PSD, band-power, entropy, SEF95 and IWMF comparisons.
+- Calculated core FIR workload, measured runtime separately, and supplied deterministic demo data and regression tests.
 
 ## Signal-processing pipeline
 
 ```text
-500 Hz EEG
-   ↓
-Rational conversion: L = 8, M = 125
-   ↓
-Specification-driven Kaiser anti-alias FIR
-   ↓
-32 Hz EEG
-   ↓
-8 s epochs, 50% overlap
-   ↓
-Hann-window PSD + spectral features
-   ↓
-PSD shape + band power + entropy + SEF95 + IWMF validation
+500 Hz EEG → upsample ×8 → Kaiser FIR at 4 kHz → decimate ÷125 → 32 Hz EEG
+     │                                                               │
+     └────────── 8 s epochs, 50% overlap on both branches ──────────────┘
+                          ↓
+       Target-band PSD, band power, entropy, SEF95 and IWMF comparison
 ```
 
-The 8 s analysis window gives identical frequency-bin spacing on both branches:
-
-`500 / 4000 = 32 / 256 = 0.125 Hz`.
+The polyphase implementation computes only the contributions needed at output instants; it does not allocate the zero-stuffed sequence. Both branches use 8 s windows: 4,000 and 256 samples respectively, giving **0.125 Hz bin spacing**, 97 bins in 0.5–12.5 Hz, and 14 epochs for a 60 s recording. Hann-window spectral resolution is broader than the bin spacing.
 
 ## Engineering decisions
 
-| Decision | Rationale | Boundary / trade-off |
-| --- | --- | --- |
-| Rational factor `8/125` | Converts 500 Hz exactly to 32 Hz | Requires a high-rate interpolation filter before decimation |
-| 12.5 Hz protected band | Preserves the full target analysis range with margin below the 16 Hz output Nyquist limit | Content above 16 Hz is intentionally discarded |
-| Specification-driven Kaiser FIR | Converts passband/stopband requirements into a reproducible design | Produces a long 4,145-tap reference filter |
-| Direct-form implementation | Provides a transparent numerical reference | Computationally expensive and not the intended efficient path |
-| Polyphase implementation | Evaluates only contributions needed for retained output samples | Requires careful equivalence validation |
-| 8 s, 50%-overlap epochs | Gives 0.125 Hz spectral resolution at both sampling rates | Longer windows reduce temporal resolution |
-| Multiple spectral metrics | Tests shape, energy, and summary-feature preservation separately | More informative than a single scalar metric, but not a downstream clinical validation |
+| Decision | Reason / trade-off |
+| --- | --- |
+| Exact ratio `L=8`, `M=125` | Avoids rate approximation; intermediate design rate is 4 kHz. |
+| Protected band 0.5–12.5 Hz | Leaves a 3.5 Hz transition before the output Nyquist limit. |
+| Symmetric Kaiser FIR | Reproducible linear-phase design; long direct-form workload. |
+| Same coefficients in both implementations | Separates implementation equivalence from spectral preservation. |
+| Multiple spectral metrics | Tests shape, energy and features; does not establish clinical validity. |
 
 ## Anti-alias filter design
 
-The 32 Hz target rate has a 16 Hz Nyquist frequency. The filter is therefore derived from explicit constraints rather than an arbitrary tap count:
+`design_resample_fir()` uses `kaiserord` with a **60 dB design target**, transition width `3.5/2000`, and an odd tap count. `firwin` uses a 14.25 Hz midpoint cutoff at 4 kHz. The result is **4,145 taps**, beta **5.65326**, and unit DC coefficient sum; resampling applies the interpolation gain of 8.
 
-- passband edge: **12.5 Hz**
-- stopband edge: **16 Hz**
-- stopband target: **60 dB**
-- interpolation rate: **4 kHz**
-- resulting FIR length: **4,145 taps**
-- Kaiser beta: **5.653**
+The saved response summary reports:
 
-Measured response checks:
-
-| Filter check | Achieved |
+| Check | Saved value |
 | --- | ---: |
 | Gain at 12.5 Hz | -0.0095 dB |
-| Worst passband deviation | 0.0090 dB |
+| Sampled passband deviation | 0.0090 dB |
 | Gain at 16 Hz | -60.32 dB |
-| Minimum stopband attenuation | 59.89 dB |
+| Minimum sampled stopband attenuation | 59.89 dB |
+
+**The design does not strictly meet 60 dB throughout the stopband:** the measured shortfall is about 0.11 dB. These are finite-grid checks, not continuous-frequency bounds. The saved summary uses a 131,072-point response grid and interpolated edge gains; its passband grid excludes the exact 12.5 Hz edge. Current response checks additionally evaluate both edges directly and include them in the extrema, so new edge/deviation values differ slightly. The FIR itself is unchanged.
 
 ## Polyphase optimisation
 
-The direct reference explicitly creates the 8× zero-stuffed sequence and evaluates a 4,145-tap FIR at the 4 kHz intermediate rate. The polyphase form reorganises the same coefficients so only contributions required for retained output samples are evaluated.
-
-For the 30,000-sample validation recording:
+For 30,000 input samples and 4,145 taps:
 
 ```text
-Direct form:  30,000 × 8 × 4,145    = 994,800,000 MACs
-Polyphase:    30,000 × 4,145 / 125  ≈     994,800 MACs
+Direct core:    N × L × taps = 994,800,000 MACs
+Polyphase core: N × taps / M ≈   994,800 MACs
+Ratio: L × M = 1000
 ```
 
-The estimated core FIR workload is therefore reduced by approximately **1000×**. On the validation machine, the median wall-clock runtime improved by approximately **119×**.
+This approximate steady-state comparison excludes boundary padding, phase-length rounding and library overhead. It compares against explicit zero-stuffed FIR filtering, not an already optimised decimator. The intermediate-array byte estimate in JSON describes two float64 arrays, not peak process memory.
 
-The efficient and direct implementations remain numerically equivalent over their common valid output region:
+The direct reference compensates the **2,072 intermediate-sample delay (0.518 s)** but does not flush its causal FIR tail. It returns 1,904 samples for this recording; equivalence is measured against the first 1,904 polyphase samples. Polyphase uses zero extension at both boundaries and returns `ceil(N × 8 / 125)` samples. The common prefix includes the start boundary transient; it is not a transient-free region. Both APIs use the default odd symmetric FIR for this alignment.
 
-- MSE: `7.77e-27`
-- RMSE: `8.81e-14`
-- Pearson correlation: `1.000000`
+![Direct and polyphase output overlay](figures/resampling_equivalence.png)
 
-## Spectral preservation
+Timing uses three warm-ups per implementation, then 20 direct and 100 polyphase runs. The saved medians are 0.282287 s and 0.0023764 s. Their ratio is machine-dependent and separate from the MAC estimate. Timing includes allocation and resampling, excludes FIR design, and runs the two groups sequentially; it is not a controlled cross-platform benchmark.
 
-Information preservation is evaluated across the full **0.5–12.5 Hz** target band, not with a single summary statistic.
+## Spectral-preservation validation
 
-### PSD shape
+`epoch_psd()` computes one-sided Hann periodograms with density scaling and no detrending. Both branches use the same frequency bins; no extra bandpass is applied. Incomplete trailing epochs are discarded, and only epochs complete on both branches are compared.
 
-- Median PSD correlation: **0.999999996**
-- Median normalized-PSD relative RMSE: **0.0091%**
+- **PSD shape:** divide each target-band PSD by its bin sum; compare Pearson correlation and RMSE relative to reference RMS per epoch. This discrete normalization sums to one; it is not a unit-integral PSD density.
+- **Band power:** trapezoidal integration over each inclusive band. Shared boundary bins receive half-bin weights in adjacent bands.
+- **Entropy:** Shannon entropy of normalized target-band bins, divided by `log(97)`.
+- **SEF95:** first bin reaching 95% of cumulative target-band power; quantized to 0.125 Hz.
+- **IWMF:** power-weighted mean target-band frequency from an unwindowed (boxcar) periodogram, unlike the Hann-based metrics.
 
-![PSD preservation](figures/psd_preservation.png)
+Zero-power epochs cannot establish spectral preservation and are rejected. Pearson correlation of constant feature series is undefined and written as JSON `null` in new runs.
 
-### Band power
+![Mean normalized PSD comparison](figures/psd_preservation.png)
 
-| Band | Median relative error |
-| --- | ---: |
-| 0.5–4 Hz | 0.0277% |
-| 4–8 Hz | 0.0263% |
-| 8–12.5 Hz | 0.0318% |
-
-### Spectral summary features
-
-| Feature | Result |
-| --- | ---: |
-| Spectral entropy | r = 0.999999998 |
-| SEF95 | RMSE = 0.000 Hz, r = 1.000 |
-| IWMF | RMSE = 0.0412 Hz, r = 0.9911 |
-
-![IWMF preservation](figures/iwmf_preservation.png)
-
-## Validation framework
-
-The validation separates four distinct questions:
-
-1. **Implementation equivalence** — does the polyphase implementation match the direct-form FIR reference?
-2. **Full-spectrum preservation** — is the normalized PSD shape retained throughout the target band?
-3. **Band-energy preservation** — are integrated powers retained across low, mid, and high sub-bands?
-4. **Feature preservation** — are complementary spectral descriptors such as entropy, SEF95, and IWMF retained?
-
-Keeping these questions separate makes the evidence stronger than relying on one frequency-domain statistic.
+![Epoch-level IWMF comparison](figures/iwmf_preservation.png)
 
 ## Repository structure
 
 ```text
-.
-├── src/
-│   ├── dsp_pipeline.py        # multirate DSP and spectral validation functions
-│   └── demo_data.py           # deterministic EEG-like demo signal
-├── tests/
-│   └── test_pipeline.py       # numerical, filter, and spectral regression tests
-├── results/
-│   └── benchmark_results.json # validated benchmark summary
-├── figures/                   # equivalence and spectral-preservation figures
-├── run_analysis.py            # CLI entry point
-├── requirements.txt
-└── .github/workflows/ci.yml   # automated test workflow
+src/dsp_pipeline.py             FIR, resampling, spectral metrics and timing
+src/demo_data.py                Deterministic synthetic signal
+src/__init__.py                 Package marker
+run_analysis.py                CLI and figure generation
+tests/test_pipeline.py          Engineering regression tests
+results/benchmark_results.json  Saved recording benchmark
+figures/                       Three recording-evidence PNGs
+.github/workflows/ci.yml        Tests, compilation and demo
+requirements.txt               Python dependencies
+README.md / LICENSE            Project description and MIT license
+.gitattributes / .gitignore     Repository configuration
 ```
 
 ## Quick start
+
+Use **Python 3.11 or later**:
 
 ```bash
 python -m venv .venv
 # Windows: .venv\Scripts\activate
 # macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 python run_analysis.py
 python -m unittest discover -s tests -v
 ```
 
-Running `run_analysis.py` without an input file uses a deterministic EEG-like signal so the full pipeline can be executed without external data.
+The default run uses a 60 s synthetic EEG-like signal with seed 6041. It writes `results/demo_metrics.json` and three `figures/demo_*.png` files. Generated outputs are ignored by Git and do not overwrite the saved recording benchmark.
 
-To analyse a single-column XLSX recording:
+For your own recording:
 
 ```bash
-python run_analysis.py --input path/to/recording.xlsx --label recording_name
+python run_analysis.py --input recording.xlsx --label recording_name
 ```
 
-The validation recording itself is not redistributed. The repository includes the derived benchmark summary and figures needed to inspect the reported results.
+Input must contain at least 8 s of uniformly sampled **500 Hz** data: numeric, finite values in the first column of the first worksheet, with no header, blank samples or timestamps in that column. Other columns are ignored. The sampling rate and units are assumed, not inferred. Labels accept letters, digits, underscores and hyphens, starting with a letter or digit.
 
 ## Reproducibility
 
-`tests/test_pipeline.py` checks output length, FIR specifications, direct/polyphase numerical equivalence, epoch frequency resolution, PSD-grid alignment, normalized PSD behaviour, spectral features, and the theoretical workload reduction.
+CI installs dependencies, compiles the sources, runs regression tests and executes the demo. Tests cover arbitrary output lengths, impulse alignment, DC gain, achieved FIR response, epoch boundaries, known-tone PSD power and features, numerical equivalence, invalid input and approximate operation counts.
 
-The CI workflow runs these regression tests on every push and pull request. Machine-dependent runtime numbers are intentionally kept separate from deterministic numerical and spectral checks.
+Dependencies have minimum versions rather than a frozen environment. New runs record Python, NumPy, SciPy and platform information; numerical rounding and timings can vary. The original recording benchmark lacks hardware/software metadata and raw data, so neither its exact floating-point values nor its runtime can be independently reconstructed here.
 
 ## Scope and limitations
 
-This project evaluates information preservation within the **0.5–12.5 Hz target band** after 500 Hz → 32 Hz resampling. Frequencies above the 16 Hz Nyquist limit of the target rate are intentionally removed by anti-alias filtering and are not claimed to be preserved.
+Evidence covers one recording and 14 overlapping epochs, not independent subjects or a population study. Boundary transients are included; no transient-exclusion sensitivity experiment is supplied. Content above 16 Hz is attenuated, not perfectly eliminated, and preservation is evaluated only in 0.5–12.5 Hz. The finite filter misses a strict 60 dB stopband bound slightly.
 
-The repository demonstrates multirate DSP design, computational optimisation, spectral analysis, and signal-level validation. It does **not** make clinical, diagnostic, seizure-detection, or downstream model-performance claims.
+The demo is synthetic and does not model EEG clinically. This project makes no clinical, diagnostic, seizure-detection or downstream model-performance claims.
 
 ## License
 
-Source code is provided under the MIT License. Third-party data and externally owned materials retain their original rights and terms.
+[MIT License](LICENSE) for source code. Third-party data and externally owned materials retain their original rights and terms.
