@@ -10,7 +10,7 @@
 
 ## Key results
 
-The saved benchmark reports these results for one **60 s, 30,000-sample EEG recording**. The recording is not redistributed, so these recording-dependent values cannot be independently reproduced from the public repository. The deterministic demo exercises the implementation with different data and produces different results.
+The public benchmark reports these results for one **60 s, 30,000-sample EEG recording**. The recording is not redistributed, so these recording-dependent values cannot be independently reproduced from the public repository. The deterministic demo exercises the implementation with different data and produces different results.
 
 | Metric | Recorded result |
 | --- | ---: |
@@ -26,7 +26,7 @@ The saved benchmark reports these results for one **60 s, 30,000-sample EEG reco
 | Approximate FIR-operation reduction | 1000× |
 | Measured median runtime speed-up | 118.79× (~119×) |
 
-[benchmark_results.json](results/benchmark_results.json) is the authoritative saved numerical summary. The figures illustrate this recording; their underlying sample and per-epoch arrays are not included.
+[benchmark_results.json](results/benchmark_results.json) is the authoritative numerical summary for the reported recording benchmark. The figures illustrate this recording; their underlying sample and per-epoch arrays are not included.
 
 ## Why this problem matters
 
@@ -66,7 +66,7 @@ The polyphase implementation computes only the contributions needed at output in
 
 `design_resample_fir()` uses `kaiserord` with a **60 dB design target**, transition width `3.5/2000`, and an odd tap count. `firwin` uses a 14.25 Hz midpoint cutoff at 4 kHz. The result is **4,145 taps**, beta **5.65326**, and unit DC coefficient sum; resampling applies the interpolation gain of 8.
 
-The saved response summary reports:
+The benchmark response summary reports:
 
 | Check | Saved value |
 | --- | ---: |
@@ -93,7 +93,7 @@ The direct reference compensates the **2,072 intermediate-sample delay (0.518 s)
 
 ![Direct and polyphase output overlay](figures/resampling_equivalence.png)
 
-Timing uses three warm-ups per implementation, then 20 direct and 100 polyphase runs. The saved medians are 0.282287 s and 0.0023764 s. Their ratio is machine-dependent and separate from the MAC estimate. Timing includes allocation and resampling, excludes FIR design, and runs the two groups sequentially; it is not a controlled cross-platform benchmark.
+Timing uses three warm-ups per implementation, then 20 direct and 100 polyphase runs. The benchmark medians are 0.282287 s and 0.0023764 s. Their ratio is machine-dependent and separate from the MAC estimate. Timing includes allocation and resampling, excludes FIR design, and runs the two groups sequentially; it is not a controlled cross-platform benchmark.
 
 ## Spectral-preservation validation
 
@@ -105,7 +105,7 @@ Timing uses three warm-ups per implementation, then 20 direct and 100 polyphase 
 - **SEF95:** first bin reaching 95% of cumulative target-band power; quantized to 0.125 Hz.
 - **IWMF:** power-weighted mean target-band frequency from an unwindowed (boxcar) periodogram, unlike the Hann-based metrics.
 
-Zero-power epochs cannot establish spectral preservation and are rejected. Pearson correlation of constant feature series is undefined and written as JSON `null` in new runs.
+Zero-power epochs cannot establish spectral preservation and are rejected. Pearson correlation of constant feature series is undefined and represented as JSON `null` in generated metrics.
 
 ![Mean normalized PSD comparison](figures/psd_preservation.png)
 
@@ -140,7 +140,7 @@ python run_analysis.py
 python -m unittest discover -s tests -v
 ```
 
-The default run uses a 60 s synthetic EEG-like signal with seed 6041. It writes `results/demo_metrics.json` and three `figures/demo_*.png` files. Generated outputs are ignored by Git and do not overwrite the saved recording benchmark.
+The default run uses a 60 s synthetic EEG-like signal with seed 6041. It writes `results/demo_metrics.json` and three `figures/demo_*.png` files. Generated outputs are ignored by Git and do not overwrite the recording benchmark.
 
 For your own recording:
 
